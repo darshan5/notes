@@ -3,14 +3,16 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
     "build": "next build",
-    "deploy": "opennextjs-cloudflare && wrangler pages deploy",
-    "preview": "opennextjs-cloudflare && wrangler pages dev",
+    "dev": "next dev",
+    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "start": "next start",
     "lint": "eslint",
     "db:migrate": "wrangler d1 execute notes-db --file=./drizzle/0001_initial.sql",
-    "db:migrate:local": "wrangler d1 execute notes-db --file=./drizzle/0001_initial.sql --local"
+    "db:migrate:local": "wrangler d1 execute notes-db --file=./drizzle/0001_initial.sql --local",
+    "upload": "opennextjs-cloudflare build && opennextjs-cloudflare upload",
+    "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts"
   },
   "dependencies": {
     "@opennextjs/cloudflare": "^1.19.11",

@@ -1,0 +1,30 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"main": ".open-next/worker.js",
+	"name": "notes",
+	"compatibility_date": "2026-06-16",
+	"compatibility_flags": [
+		"nodejs_compat",
+		"global_fetch_strictly_public"
+	],
+	"vars": {
+		"JWT_SECRET": "50fb8f56386c0d5f588abaa1199a114b34402017f7ededa0da914d6eda86f523"
+	},
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "notes-db",
+			"database_id": "1ca0dcec-eafd-422f-93e6-90fa919ff1cc"
+		}
+	],
+	"assets": {
+		"directory": ".open-next/assets",
+		"binding": "ASSETS"
+	},
+	"services": [
+		{
+			"binding": "WORKER_SELF_REFERENCE",
+			"service": "notes"
+		}
+	]
+}
