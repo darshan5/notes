@@ -20,52 +20,52 @@ export function NoteCard({ note, onClick, onTogglePin, onDelete }: NoteCardProps
   return (
     <div
       onClick={onClick}
-      className="flex cursor-pointer items-start gap-3 border-b border-neutral-800 px-4 py-3 active:bg-neutral-800/50"
+      className="flex cursor-pointer items-start gap-3 border-b border-[var(--border)] px-4 py-4 active:bg-[var(--bg-hover)]"
     >
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           {note.pinned && (
-            <span className="text-xs text-blue-400">📌</span>
+            <span className="text-sm text-blue-400">📌</span>
           )}
-          <h3 className="truncate text-base font-medium text-white">
+          <h3 className="truncate text-lg font-medium text-[var(--text-primary)]">
             {note.title || "Untitled"}
           </h3>
         </div>
         {preview && (
-          <p className="mt-0.5 truncate text-sm text-neutral-400">{preview}</p>
+          <p className="mt-0.5 truncate text-base text-[var(--text-secondary)]">{preview}</p>
         )}
-        <div className="mt-1.5 flex items-center gap-2">
-          <span className="text-xs text-neutral-500">{dateStr}</span>
+        <div className="mt-2 flex items-center gap-2">
+          <span className="text-sm text-[var(--text-tertiary)]">{dateStr}</span>
           {note.tags.map((tag) => (
             <span
               key={tag}
-              className="rounded bg-neutral-800 px-1.5 py-0.5 text-xs text-neutral-400"
+              className="rounded bg-[var(--tag-bg)] px-2 py-0.5 text-sm text-[var(--text-secondary)]"
             >
               {tag}
             </span>
           ))}
         </div>
       </div>
-      <div className="flex flex-shrink-0 gap-1" onClick={(e) => e.stopPropagation()}>
+      <div className="flex flex-shrink-0 gap-2" onClick={(e) => e.stopPropagation()}>
         <button
           onClick={onTogglePin}
-          className={`rounded p-1.5 ${
+          className={`rounded-lg p-2.5 ${
             note.pinned
               ? "text-blue-400 hover:bg-blue-400/10"
-              : "text-neutral-600 hover:bg-neutral-800 hover:text-neutral-400"
+              : "text-[var(--text-tertiary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-secondary)]"
           }`}
           title={note.pinned ? "Unpin" : "Pin"}
         >
-          <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+          <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24">
             <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z" />
           </svg>
         </button>
         <button
           onClick={onDelete}
-          className="rounded p-1.5 text-neutral-600 hover:bg-red-400/10 hover:text-red-400"
+          className="rounded-lg p-2.5 text-[var(--text-tertiary)] hover:bg-red-400/10 hover:text-red-400"
           title="Delete"
         >
-          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
               strokeLinecap="round"
               strokeLinejoin="round"

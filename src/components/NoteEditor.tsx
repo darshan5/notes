@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { type Note } from "@/hooks/useNotes";
 import { TagInput } from "./TagInput";
 
@@ -14,18 +14,25 @@ export function NoteEditor({ note, onClose }: NoteEditorProps) {
   const [body, setBody] = useState(note?.body ?? "");
   const [tags, setTags] = useState<string[]>(note?.tags ?? []);
   const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
+  const [noteId, setNoteId] = useState(note?.id ?? null);
+  const autoSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastSavedRef = useRef({ title: note?.title ?? "", body: note?.body ?? "", tags: note?.tags ?? [] as string[] });
 
-  const isNew = !note;
+  const isNew = !noteId;
+
   const hasChanges =
-    isNew ||
-    title !== note?.title ||
-    body !== note?.body ||
-    JSON.stringify(tags) !== JSON.stringify(note?.tags);
+    title !== lastSavedRef.current.title ||
+    body !== lastSavedRef.current.body ||
+    JSON.stringify(tags) !== JSON.stringify(lastSavedRef.current.tags);
 
-  async function handleSave() {
+  const save = useCallback(async () => {
+    if (!hasChanges && !isNew) return;
+    if (saving) return;
     setSaving(true);
     setError("");
+    setSaved(false);
     try {
       if (isNew) {
         const res = await fetch("/api/notes", {
@@ -37,8 +44,10 @@ export function NoteEditor({ note, onClose }: NoteEditorProps) {
           const data = await res.json();
           throw new Error(data.error);
         }
+        const data = await res.json();
+        setNoteId(data.id);
       } else {
-        const res = await fetch(`/api/notes/${note.id}`, {
+        const res = await fetch(`/api/notes/${noteId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ title, body, tags }),
@@ -48,36 +57,58 @@ export function NoteEditor({ note, onClose }: NoteEditorProps) {
           throw new Error(data.error);
         }
       }
-      onClose();
+      lastSavedRef.current = { title, body, tags };
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save");
     } finally {
       setSaving(false);
     }
+  }, [title, body, tags, noteId, isNew, hasChanges, saving]);
+
+  useEffect(() => {
+    if (autoSaveRef.current) clearTimeout(autoSaveRef.current);
+    if (!hasChanges) return;
+    autoSaveRef.current = setTimeout(() => {
+      save();
+    }, 5000);
+    return () => {
+      if (autoSaveRef.current) clearTimeout(autoSaveRef.current);
+    };
+  }, [title, body, tags, hasChanges, save]);
+
+  function handleClose() {
+    if (hasChanges) {
+      save().then(onClose);
+    } else {
+      onClose();
+    }
   }
 
   return (
-    <div className="min-h-screen bg-neutral-950">
-      <header className="sticky top-0 z-40 flex items-center justify-between border-b border-neutral-800 bg-neutral-950/80 px-4 py-3 backdrop-blur-lg">
+    <div className="min-h-screen bg-[var(--bg-primary)]">
+      <header className="sticky top-0 z-40 flex items-center justify-between border-b border-[var(--border)] bg-[var(--bg-primary)]/80 px-4 py-3 backdrop-blur-lg">
         <button
-          onClick={onClose}
-          className="text-sm text-blue-400 hover:text-blue-300"
+          onClick={handleClose}
+          className="text-base text-blue-500 hover:text-blue-400"
         >
-          Cancel
+          ← Back
         </button>
-        <h2 className="text-sm font-medium text-neutral-400">
-          {isNew ? "New Note" : "Edit Note"}
-        </h2>
-        <button
-          onClick={handleSave}
-          disabled={saving || !hasChanges}
-          className="text-sm font-medium text-blue-400 hover:text-blue-300 disabled:text-neutral-600"
-        >
-          {saving ? "Saving..." : "Save"}
-        </button>
+        <div className="flex items-center gap-2">
+          {saving && (
+            <span className="text-sm text-[var(--text-tertiary)]">Saving...</span>
+          )}
+          {saved && (
+            <span className="text-sm text-green-400">Saved</span>
+          )}
+          {error && (
+            <span className="text-sm text-red-400">Error</span>
+          )}
+        </div>
       </header>
 
-      <div className="px-4 py-4">
+      <div className="px-4 py-4 pb-28">
         {error && (
           <p className="mb-3 rounded-lg bg-red-900/30 px-3 py-2 text-sm text-red-400">
             {error}
@@ -89,22 +120,45 @@ export function NoteEditor({ note, onClose }: NoteEditorProps) {
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Title"
           autoFocus={isNew}
-          className="mb-3 w-full bg-transparent text-2xl font-bold text-white outline-none placeholder:text-neutral-600"
+          className="mb-3 w-full bg-transparent text-3xl font-bold text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)]"
         />
         <textarea
           value={body}
           onChange={(e) => setBody(e.target.value)}
           placeholder="Start typing..."
-          rows={12}
-          className="mb-4 w-full resize-none bg-transparent text-base leading-relaxed text-neutral-200 outline-none placeholder:text-neutral-600"
+          rows={16}
+          className="mb-4 w-full resize-none bg-transparent text-lg leading-relaxed text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)]"
         />
         <div>
-          <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-neutral-500">
+          <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-[var(--text-tertiary)]">
             Tags
           </label>
           <TagInput tags={tags} onChange={setTags} />
         </div>
       </div>
+
+      {/* FAB save button */}
+      <button
+        onClick={save}
+        disabled={saving || (!hasChanges && !isNew)}
+        className={`fixed bottom-6 right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-all active:scale-95 ${
+          hasChanges || isNew
+            ? "bg-blue-600 text-white shadow-blue-600/25"
+            : "bg-[var(--bg-tertiary)] text-[var(--text-tertiary)]"
+        } disabled:opacity-50`}
+      >
+        {saving ? (
+          <div className="h-6 w-6 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+        ) : saved ? (
+          <svg className="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+          </svg>
+        ) : (
+          <svg className="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+        )}
+      </button>
     </div>
   );
 }
