@@ -16,6 +16,7 @@ export async function GET(request: NextRequest) {
       id: schema.users.id,
       email: schema.users.email,
       hasPin: schema.users.pinHash,
+      isAdmin: schema.users.isAdmin,
       createdAt: schema.users.createdAt,
     })
     .from(schema.users)
@@ -30,6 +31,7 @@ export async function GET(request: NextRequest) {
     id: user.id,
     email: user.email,
     hasPin: !!user.hasPin,
+    isAdmin: user.isAdmin,
     createdAt: user.createdAt,
   });
 }

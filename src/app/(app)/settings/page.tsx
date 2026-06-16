@@ -11,6 +11,13 @@ interface ApiKey {
   createdAt: string;
 }
 
+interface ManagedUser {
+  id: string;
+  email: string;
+  isAdmin: boolean;
+  createdAt: string;
+}
+
 export default function SettingsPage() {
   const { user, loading: authLoading, logout, setPin } = useAuth();
   const router = useRouter();
@@ -21,6 +28,12 @@ export default function SettingsPage() {
   const [pin, setPinValue] = useState("");
   const [pinError, setPinError] = useState("");
 
+  const [users, setUsers] = useState<ManagedUser[]>([]);
+  const [newUserEmail, setNewUserEmail] = useState("");
+  const [newUserPassword, setNewUserPassword] = useState("");
+  const [userError, setUserError] = useState("");
+  const [userSuccess, setUserSuccess] = useState("");
+
   useEffect(() => {
     if (authLoading) return;
     if (!user) {
@@ -28,6 +41,7 @@ export default function SettingsPage() {
       return;
     }
     fetchKeys();
+    if (user.isAdmin) fetchUsers();
   }, [user, authLoading, router]);
 
   async function fetchKeys() {
@@ -35,6 +49,14 @@ export default function SettingsPage() {
     if (res.ok) {
       const data = await res.json();
       setKeys(data.keys);
+    }
+  }
+
+  async function fetchUsers() {
+    const res = await fetch("/api/admin/users");
+    if (res.ok) {
+      const data = await res.json();
+      setUsers(data.users);
     }
   }
 
@@ -61,6 +83,39 @@ export default function SettingsPage() {
       body: JSON.stringify({ id }),
     });
     fetchKeys();
+  }
+
+  async function createUser() {
+    setUserError("");
+    setUserSuccess("");
+    if (!newUserEmail.trim() || !newUserPassword.trim()) {
+      setUserError("Email and password are required");
+      return;
+    }
+    const res = await fetch("/api/admin/users", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: newUserEmail, password: newUserPassword }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      setUserError(data.error);
+      return;
+    }
+    setUserSuccess(`User ${data.email} created`);
+    setNewUserEmail("");
+    setNewUserPassword("");
+    fetchUsers();
+  }
+
+  async function deleteUser(id: string, email: string) {
+    if (!confirm(`Delete user ${email}? Their notes will also be deleted.`)) return;
+    const res = await fetch("/api/admin/users", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    if (res.ok) fetchUsers();
   }
 
   async function handleSetPin() {
@@ -115,8 +170,86 @@ export default function SettingsPage() {
               <span className="text-sm text-neutral-300">Email</span>
               <span className="text-sm text-neutral-500">{user.email}</span>
             </div>
+            {user.isAdmin && (
+              <div className="flex items-center justify-between border-t border-neutral-800 px-4 py-3">
+                <span className="text-sm text-neutral-300">Role</span>
+                <span className="rounded bg-blue-600/20 px-2 py-0.5 text-xs text-blue-400">
+                  Admin
+                </span>
+              </div>
+            )}
           </div>
         </section>
+
+        {/* User Management (admin only) */}
+        {user.isAdmin && (
+          <section>
+            <h2 className="mb-3 text-xs font-medium uppercase tracking-wider text-neutral-500">
+              Users
+            </h2>
+            <div className="space-y-2">
+              {userSuccess && (
+                <p className="rounded-lg bg-green-900/20 px-3 py-2 text-sm text-green-400">
+                  {userSuccess}
+                </p>
+              )}
+              {userError && (
+                <p className="rounded-lg bg-red-900/20 px-3 py-2 text-sm text-red-400">
+                  {userError}
+                </p>
+              )}
+              <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-4">
+                <p className="mb-3 text-sm text-neutral-400">Add a new user</p>
+                <div className="space-y-2">
+                  <input
+                    type="email"
+                    value={newUserEmail}
+                    onChange={(e) => setNewUserEmail(e.target.value)}
+                    placeholder="Email"
+                    className="w-full rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2 text-sm text-white outline-none placeholder:text-neutral-500 focus:border-blue-500"
+                  />
+                  <input
+                    type="password"
+                    value={newUserPassword}
+                    onChange={(e) => setNewUserPassword(e.target.value)}
+                    placeholder="Password (6+ characters)"
+                    className="w-full rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2 text-sm text-white outline-none placeholder:text-neutral-500 focus:border-blue-500"
+                  />
+                  <button
+                    onClick={createUser}
+                    disabled={!newUserEmail.trim() || !newUserPassword.trim()}
+                    className="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+                  >
+                    Add User
+                  </button>
+                </div>
+              </div>
+              {users.map((u) => (
+                <div
+                  key={u.id}
+                  className="flex items-center justify-between rounded-lg border border-neutral-800 bg-neutral-900 px-4 py-3"
+                >
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm text-white">{u.email}</p>
+                    {u.isAdmin && (
+                      <span className="rounded bg-blue-600/20 px-1.5 py-0.5 text-xs text-blue-400">
+                        admin
+                      </span>
+                    )}
+                  </div>
+                  {!u.isAdmin && (
+                    <button
+                      onClick={() => deleteUser(u.id, u.email)}
+                      className="text-xs text-red-400 hover:text-red-300"
+                    >
+                      Delete
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Security */}
         <section>

@@ -1,8 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 
 export default function SignupPage() {
@@ -11,8 +10,22 @@ export default function SignupPage() {
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [allowed, setAllowed] = useState<boolean | null>(null);
   const { signup } = useAuth();
   const router = useRouter();
+
+  useEffect(() => {
+    fetch("/api/auth/setup-status")
+      .then((r) => r.json())
+      .then((data) => {
+        if (!data.needsSetup) {
+          router.replace("/login");
+        } else {
+          setAllowed(true);
+        }
+      })
+      .catch(() => router.replace("/login"));
+  }, [router]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -32,12 +45,20 @@ export default function SignupPage() {
     }
   }
 
+  if (!allowed) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-neutral-950">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-neutral-700 border-t-white" />
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-neutral-950 px-4">
       <div className="w-full max-w-sm">
         <h1 className="mb-1 text-center text-3xl font-bold text-white">Notes</h1>
         <p className="mb-8 text-center text-sm text-neutral-400">
-          Create your account
+          Create the admin account
         </p>
         <form onSubmit={handleSubmit} className="space-y-4">
           <input
@@ -71,15 +92,9 @@ export default function SignupPage() {
             disabled={loading}
             className="w-full rounded-lg bg-blue-600 py-3 font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
           >
-            {loading ? "Creating account..." : "Create Account"}
+            {loading ? "Creating admin..." : "Create Admin Account"}
           </button>
         </form>
-        <p className="mt-6 text-center text-sm text-neutral-400">
-          Already have an account?{" "}
-          <Link href="/login" className="text-blue-400 hover:text-blue-300">
-            Sign in
-          </Link>
-        </p>
       </div>
     </div>
   );

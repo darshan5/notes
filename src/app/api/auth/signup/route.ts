@@ -2,12 +2,23 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDb, schema } from "@/lib/db";
 import { hashPassword, generateId } from "@/lib/auth/crypto";
 import { createSession } from "@/lib/auth/session";
-import { eq } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 export async function POST(request: NextRequest) {
   const { env } = await getCloudflareContext();
   const db = getDb(env.DB);
+
+  const [{ count }] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(schema.users);
+
+  if (count > 0) {
+    return NextResponse.json(
+      { error: "Signups are disabled. Ask an admin to create your account." },
+      { status: 403 }
+    );
+  }
 
   const body = await request.json();
   const { email, password } = body;
@@ -26,19 +37,6 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const existing = await db
-    .select({ id: schema.users.id })
-    .from(schema.users)
-    .where(eq(schema.users.email, email.toLowerCase()))
-    .limit(1);
-
-  if (existing.length > 0) {
-    return NextResponse.json(
-      { error: "Email already registered" },
-      { status: 409 }
-    );
-  }
-
   const now = new Date();
   const userId = generateId();
   const passwordHash = await hashPassword(password);
@@ -47,6 +45,7 @@ export async function POST(request: NextRequest) {
     id: userId,
     email: email.toLowerCase(),
     passwordHash,
+    isAdmin: true,
     createdAt: now,
     updatedAt: now,
   });

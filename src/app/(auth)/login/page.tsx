@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
@@ -10,8 +10,21 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [needsSetup, setNeedsSetup] = useState(false);
   const { login } = useAuth();
   const router = useRouter();
+
+  useEffect(() => {
+    fetch("/api/auth/setup-status")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.needsSetup) {
+          setNeedsSetup(true);
+          router.replace("/signup");
+        }
+      })
+      .catch(() => {});
+  }, [router]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -26,6 +39,8 @@ export default function LoginPage() {
       setLoading(false);
     }
   }
+
+  if (needsSetup) return null;
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-neutral-950 px-4">
@@ -60,12 +75,6 @@ export default function LoginPage() {
             {loading ? "Signing in..." : "Sign In"}
           </button>
         </form>
-        <p className="mt-6 text-center text-sm text-neutral-400">
-          Don&apos;t have an account?{" "}
-          <Link href="/signup" className="text-blue-400 hover:text-blue-300">
-            Sign up
-          </Link>
-        </p>
       </div>
     </div>
   );

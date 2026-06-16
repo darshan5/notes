@@ -6,6 +6,7 @@ interface User {
   id: string;
   email: string;
   hasPin: boolean;
+  isAdmin: boolean;
 }
 
 export function useAuth() {
@@ -39,7 +40,7 @@ export function useAuth() {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);
-    setUser({ id: data.userId, email: data.email, hasPin: data.hasPin });
+    setUser({ id: data.userId, email: data.email, hasPin: data.hasPin, isAdmin: data.isAdmin ?? false });
     return data;
   };
 
@@ -51,7 +52,7 @@ export function useAuth() {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);
-    setUser({ id: data.userId, email: data.email, hasPin: false });
+    setUser({ id: data.userId, email: data.email, hasPin: false, isAdmin: true });
     return data;
   };
 
