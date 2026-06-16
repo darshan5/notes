@@ -5,22 +5,35 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "deploy": "opennextjs-cloudflare && wrangler pages deploy",
+    "preview": "opennextjs-cloudflare && wrangler pages dev",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:migrate": "wrangler d1 execute notes-db --file=./drizzle/0001_initial.sql",
+    "db:migrate:local": "wrangler d1 execute notes-db --file=./drizzle/0001_initial.sql --local"
   },
   "dependencies": {
+    "@opennextjs/cloudflare": "^1.19.11",
+    "@serwist/next": "^9.5.11",
+    "dexie": "^4.4.3",
+    "drizzle-orm": "^0.45.2",
     "next": "16.2.9",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "uuid": "^14.0.0"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260616.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "drizzle-kit": "^0.31.10",
     "eslint": "^9",
     "eslint-config-next": "16.2.9",
+    "serwist": "^9.5.11",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "wrangler": "^4.100.0"
   }
 }
