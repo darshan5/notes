@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { type Note } from "@/hooks/useNotes";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { TagInput } from "./TagInput";
 
 interface NoteEditorProps {
@@ -19,6 +20,7 @@ export function NoteEditor({ note, onClose }: NoteEditorProps) {
   const [noteId, setNoteId] = useState(note?.id ?? null);
   const autoSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSavedRef = useRef({ title: note?.title ?? "", body: note?.body ?? "", tags: note?.tags ?? [] as string[] });
+  const isOnline = useOnlineStatus();
 
   const isNew = !noteId;
 
@@ -69,17 +71,17 @@ export function NoteEditor({ note, onClose }: NoteEditorProps) {
 
   useEffect(() => {
     if (autoSaveRef.current) clearTimeout(autoSaveRef.current);
-    if (!hasChanges) return;
+    if (!hasChanges || !isOnline) return;
     autoSaveRef.current = setTimeout(() => {
       save();
-    }, 5000);
+    }, 2000);
     return () => {
       if (autoSaveRef.current) clearTimeout(autoSaveRef.current);
     };
-  }, [title, body, tags, hasChanges, save]);
+  }, [title, body, tags, hasChanges, isOnline, save]);
 
   function handleClose() {
-    if (hasChanges) {
+    if (hasChanges && isOnline) {
       save().then(onClose);
     } else {
       onClose();
@@ -96,6 +98,9 @@ export function NoteEditor({ note, onClose }: NoteEditorProps) {
           ← Back
         </button>
         <div className="flex items-center gap-2">
+          {!isOnline && (
+            <span className="text-sm text-yellow-400">Offline</span>
+          )}
           {saving && (
             <span className="text-sm text-[var(--text-tertiary)]">Saving...</span>
           )}
@@ -140,9 +145,9 @@ export function NoteEditor({ note, onClose }: NoteEditorProps) {
       {/* FAB save button */}
       <button
         onClick={save}
-        disabled={saving || (!hasChanges && !isNew)}
+        disabled={saving || (!hasChanges && !isNew) || !isOnline}
         className={`fixed bottom-6 right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-all active:scale-95 ${
-          hasChanges || isNew
+          hasChanges && isOnline
             ? "bg-blue-600 text-white shadow-blue-600/25"
             : "bg-[var(--bg-tertiary)] text-[var(--text-tertiary)]"
         } disabled:opacity-50`}

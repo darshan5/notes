@@ -39,15 +39,13 @@ export function useOfflineNotes() {
   const fetchNotes = useCallback(async () => {
     setLoading(true);
     try {
-      if (isOnline) {
-        const serverNotes = await fetchFromServer();
-        if (!serverNotes) {
-          const local = await getLocalNotes();
-          setNotes(local as Note[]);
-        }
-      } else {
-        const local = await getLocalNotes();
+      const local = await getLocalNotes();
+      if (local.length > 0) {
         setNotes(local as Note[]);
+      }
+
+      if (isOnline) {
+        await fetchFromServer();
       }
     } finally {
       setLoading(false);
@@ -60,24 +58,26 @@ export function useOfflineNotes() {
       setLoading(true);
       try {
         if (isOnline) {
-          const res = await fetch(
-            `/api/notes/search?q=${encodeURIComponent(query)}`
-          );
-          if (res.ok) {
-            const data = await res.json();
-            setNotes(data.notes);
-          }
-        } else {
-          const local = await getLocalNotes();
-          const q = query.toLowerCase();
-          const filtered = (local as Note[]).filter(
-            (n) =>
-              n.title.toLowerCase().includes(q) ||
-              n.body.toLowerCase().includes(q) ||
-              n.tags.some((t) => t.toLowerCase().includes(q))
-          );
-          setNotes(filtered);
+          try {
+            const res = await fetch(
+              `/api/notes/search?q=${encodeURIComponent(query)}`
+            );
+            if (res.ok) {
+              const data = await res.json();
+              setNotes(data.notes);
+              return;
+            }
+          } catch {}
         }
+        const local = await getLocalNotes();
+        const q = query.toLowerCase();
+        const filtered = (local as Note[]).filter(
+          (n) =>
+            n.title.toLowerCase().includes(q) ||
+            n.body.toLowerCase().includes(q) ||
+            n.tags.some((t) => t.toLowerCase().includes(q))
+        );
+        setNotes(filtered);
       } finally {
         setLoading(false);
       }
@@ -92,36 +92,40 @@ export function useOfflineNotes() {
       tags: string[];
       pinned?: boolean;
     }) => {
+      const id = crypto.randomUUID();
+      const now = new Date().toISOString();
+      const localNote: Note = {
+        id,
+        ...note,
+        pinned: note.pinned ?? false,
+        createdAt: now,
+        updatedAt: now,
+      };
+
       if (isOnline) {
-        const res = await fetch("/api/notes", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(note),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error);
-        setNotes((prev) => [data, ...prev]);
-        await saveNotesLocally([noteToOffline(data), ...notes.map(noteToOffline)]);
-        return data;
-      } else {
-        const id = crypto.randomUUID();
-        const now = new Date().toISOString();
-        const offlineNote: Note = {
-          id,
-          ...note,
-          pinned: note.pinned ?? false,
-          createdAt: now,
-          updatedAt: now,
-        };
-        setNotes((prev) => [offlineNote, ...prev]);
-        await saveLocalChange({
-          noteId: id,
-          type: "create",
-          data: offlineNote,
-          timestamp: Date.now(),
-        });
-        return offlineNote;
+        try {
+          const res = await fetch("/api/notes", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(note),
+          });
+          if (res.ok) {
+            const data = await res.json();
+            setNotes((prev) => [data, ...prev]);
+            await saveNotesLocally([noteToOffline(data), ...notes.map(noteToOffline)]);
+            return data;
+          }
+        } catch {}
       }
+
+      setNotes((prev) => [localNote, ...prev]);
+      await saveLocalChange({
+        noteId: id,
+        type: "create",
+        data: localNote,
+        timestamp: Date.now(),
+      });
+      return localNote;
     },
     [isOnline, notes]
   );
@@ -129,30 +133,33 @@ export function useOfflineNotes() {
   const updateNote = useCallback(
     async (id: string, updates: Partial<Note>) => {
       if (isOnline) {
-        const res = await fetch(`/api/notes/${id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(updates),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error);
-        setNotes((prev) => prev.map((n) => (n.id === id ? data : n)));
-        return data;
-      } else {
-        setNotes((prev) =>
-          prev.map((n) =>
-            n.id === id
-              ? { ...n, ...updates, updatedAt: new Date().toISOString() }
-              : n
-          )
-        );
-        await saveLocalChange({
-          noteId: id,
-          type: "update",
-          data: updates,
-          timestamp: Date.now(),
-        });
+        try {
+          const res = await fetch(`/api/notes/${id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(updates),
+          });
+          if (res.ok) {
+            const data = await res.json();
+            setNotes((prev) => prev.map((n) => (n.id === id ? data : n)));
+            return data;
+          }
+        } catch {}
       }
+
+      setNotes((prev) =>
+        prev.map((n) =>
+          n.id === id
+            ? { ...n, ...updates, updatedAt: new Date().toISOString() }
+            : n
+        )
+      );
+      await saveLocalChange({
+        noteId: id,
+        type: "update",
+        data: updates,
+        timestamp: Date.now(),
+      });
     },
     [isOnline]
   );
@@ -160,18 +167,20 @@ export function useOfflineNotes() {
   const deleteNote = useCallback(
     async (id: string) => {
       if (isOnline) {
-        const res = await fetch(`/api/notes/${id}`, { method: "DELETE" });
-        if (!res.ok) {
-          const data = await res.json();
-          throw new Error(data.error);
-        }
-      } else {
-        await saveLocalChange({
-          noteId: id,
-          type: "delete",
-          timestamp: Date.now(),
-        });
+        try {
+          const res = await fetch(`/api/notes/${id}`, { method: "DELETE" });
+          if (res.ok) {
+            setNotes((prev) => prev.filter((n) => n.id !== id));
+            return;
+          }
+        } catch {}
       }
+
+      await saveLocalChange({
+        noteId: id,
+        type: "delete",
+        timestamp: Date.now(),
+      });
       setNotes((prev) => prev.filter((n) => n.id !== id));
     },
     [isOnline]

@@ -9,24 +9,51 @@ interface User {
   isAdmin: boolean;
 }
 
+const STORAGE_KEY = "notes_user";
+
+function getCachedUser(): User | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function setCachedUser(user: User | null) {
+  if (typeof window === "undefined") return;
+  if (user) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+  } else {
+    localStorage.removeItem(STORAGE_KEY);
+  }
+}
+
 export function useAuth() {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUserState] = useState<User | null>(getCachedUser);
   const [loading, setLoading] = useState(true);
+
+  const setUser = useCallback((u: User | null) => {
+    setUserState(u);
+    setCachedUser(u);
+  }, []);
 
   const checkAuth = useCallback(async () => {
     try {
       const res = await fetch("/api/auth/me");
       if (res.ok) {
-        setUser(await res.json());
+        const data = await res.json();
+        setUser(data);
       } else {
         setUser(null);
       }
     } catch {
-      setUser(null);
+      // Offline — keep cached user, don't sign out
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [setUser]);
 
   useEffect(() => {
     checkAuth();
@@ -40,7 +67,8 @@ export function useAuth() {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);
-    setUser({ id: data.userId, email: data.email, hasPin: data.hasPin, isAdmin: data.isAdmin ?? false });
+    const u = { id: data.userId, email: data.email, hasPin: data.hasPin, isAdmin: data.isAdmin ?? false };
+    setUser(u);
     return data;
   };
 
@@ -52,12 +80,15 @@ export function useAuth() {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);
-    setUser({ id: data.userId, email: data.email, hasPin: false, isAdmin: true });
+    const u = { id: data.userId, email: data.email, hasPin: false, isAdmin: true };
+    setUser(u);
     return data;
   };
 
   const logout = async () => {
-    await fetch("/api/auth/logout-all", { method: "POST" });
+    try {
+      await fetch("/api/auth/logout-all", { method: "POST" });
+    } catch {}
     setUser(null);
   };
 
@@ -80,7 +111,7 @@ export function useAuth() {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);
-    setUser((u) => (u ? { ...u, hasPin: true } : null));
+    setUser(user ? { ...user, hasPin: true } : null);
     return data;
   };
 
