@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { type Note } from "@/hooks/useNotes";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
+import { saveLocalChange } from "@/lib/offline/sync";
+import { offlineDb } from "@/lib/offline/db";
 import { TagInput } from "./TagInput";
 
 interface NoteEditorProps {
@@ -80,9 +82,52 @@ export function NoteEditor({ note, onClose }: NoteEditorProps) {
     };
   }, [title, body, tags, hasChanges, isOnline, save]);
 
+  const saveLocallyAndExit = useCallback(async () => {
+    if (hasChanges || isNew) {
+      const id = noteId ?? crypto.randomUUID();
+      const now = new Date().toISOString();
+      if (isNew) {
+        await saveLocalChange({
+          noteId: id,
+          type: "create",
+          data: { id, title, body, tags, pinned: false, createdAt: now, updatedAt: now },
+          timestamp: Date.now(),
+        });
+        if (offlineDb) {
+          await offlineDb.notes.put({ id, title, body, tags, pinned: false, createdAt: now, updatedAt: now });
+        }
+      } else {
+        await saveLocalChange({
+          noteId: id,
+          type: "update",
+          data: { title, body, tags },
+          timestamp: Date.now(),
+        });
+        if (offlineDb) {
+          const existing = await offlineDb.notes.get(id);
+          if (existing) {
+            await offlineDb.notes.put({ ...existing, title, body, tags, updatedAt: now });
+          }
+        }
+      }
+    }
+    onClose();
+  }, [noteId, title, body, tags, isNew, hasChanges, onClose]);
+
+  async function handleSaveAndExit() {
+    if (isOnline) {
+      await save();
+      onClose();
+    } else {
+      await saveLocallyAndExit();
+    }
+  }
+
   function handleClose() {
     if (hasChanges && isOnline) {
       save().then(onClose);
+    } else if (hasChanges && !isOnline) {
+      saveLocallyAndExit();
     } else {
       onClose();
     }
@@ -165,14 +210,10 @@ export function NoteEditor({ note, onClose }: NoteEditorProps) {
         </button>
         {/* Save & Exit */}
         <button
-          onClick={async () => { await save(); onClose(); }}
-          disabled={saving || !isOnline}
+          onClick={handleSaveAndExit}
+          disabled={saving}
           title="Save & Exit"
-          className={`flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-all active:scale-95 ${
-            isOnline
-              ? "bg-green-600 text-white shadow-green-600/25"
-              : "bg-[var(--bg-tertiary)] text-[var(--text-tertiary)]"
-          } disabled:opacity-50`}
+          className="flex h-14 w-14 items-center justify-center rounded-full bg-green-600 text-white shadow-lg shadow-green-600/25 transition-all active:scale-95 disabled:opacity-50"
         >
           <svg className="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
