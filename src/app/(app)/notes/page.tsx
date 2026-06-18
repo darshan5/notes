@@ -11,6 +11,7 @@ import { NoteCard } from "@/components/NoteCard";
 import { StatusBar } from "@/components/StatusBar";
 import { NoteEditor } from "@/components/NoteEditor";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { PullToRefresh } from "@/components/PullToRefresh";
 
 export default function NotesPage() {
   const { user, loading: authLoading } = useAuth();
@@ -98,32 +99,34 @@ export default function NotesPage() {
         <SearchBar onSearch={searchNotes} />
       </header>
 
-      <main>
-        {loading && notes.length === 0 ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="h-6 w-6 animate-spin rounded-full border-2 border-[var(--border)] border-t-blue-500" />
-          </div>
-        ) : notes.length === 0 ? (
-          <div className="flex flex-col items-center justify-center px-4 py-20 text-center">
-            <p className="text-lg text-[var(--text-secondary)]">No notes yet</p>
-            <p className="mt-1 text-sm text-[var(--text-tertiary)]">
-              Tap + to create your first note
-            </p>
-          </div>
-        ) : (
-          <div>
-            {notes.map((note) => (
-              <NoteCard
-                key={note.id}
-                note={note}
-                onClick={() => setEditingNote(note)}
-                onTogglePin={() => togglePin(note.id)}
-                onDelete={() => handleDelete(note.id, note.title)}
-              />
-            ))}
-          </div>
-        )}
-      </main>
+      <PullToRefresh onRefresh={fetchNotes}>
+        <main>
+          {loading && notes.length === 0 ? (
+            <div className="flex items-center justify-center py-20">
+              <div className="h-6 w-6 animate-spin rounded-full border-2 border-[var(--border)] border-t-blue-500" />
+            </div>
+          ) : notes.length === 0 ? (
+            <div className="flex flex-col items-center justify-center px-4 py-20 text-center">
+              <p className="text-lg text-[var(--text-secondary)]">No notes yet</p>
+              <p className="mt-1 text-sm text-[var(--text-tertiary)]">
+                Tap + to create your first note
+              </p>
+            </div>
+          ) : (
+            <div>
+              {notes.map((note) => (
+                <NoteCard
+                  key={note.id}
+                  note={note}
+                  onClick={() => setEditingNote(note)}
+                  onTogglePin={() => togglePin(note.id)}
+                  onDelete={() => handleDelete(note.id, note.title)}
+                />
+              ))}
+            </div>
+          )}
+        </main>
+      </PullToRefresh>
 
       <button
         onClick={() => setShowNew(true)}

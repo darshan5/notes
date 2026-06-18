@@ -1,6 +1,6 @@
 # Notes API Documentation
 
-Base URL: `https://notes.darshanp.workers.dev`
+Base URL: `https://notes.dd.fo`
 
 ## Authentication
 
