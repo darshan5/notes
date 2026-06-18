@@ -142,28 +142,43 @@ export function NoteEditor({ note, onClose }: NoteEditorProps) {
         </div>
       </div>
 
-      {/* FAB save button */}
-      <button
-        onClick={save}
-        disabled={saving || (!hasChanges && !isNew) || !isOnline}
-        className={`fixed bottom-6 right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-all active:scale-95 ${
-          hasChanges && isOnline
-            ? "bg-blue-600 text-white shadow-blue-600/25"
-            : "bg-[var(--bg-tertiary)] text-[var(--text-tertiary)]"
-        } disabled:opacity-50`}
-      >
-        {saving ? (
-          <div className="h-6 w-6 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-        ) : saved ? (
+      {/* FAB action buttons */}
+      <div className="fixed bottom-6 right-4 z-40 flex flex-col gap-3">
+        {/* Save */}
+        <button
+          onClick={save}
+          disabled={saving || (!hasChanges && !isNew) || !isOnline}
+          title="Save"
+          className={`flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-all active:scale-95 ${
+            hasChanges && isOnline
+              ? "bg-blue-600 text-white shadow-blue-600/25"
+              : "bg-[var(--bg-tertiary)] text-[var(--text-tertiary)]"
+          } disabled:opacity-50`}
+        >
+          {saving ? (
+            <div className="h-6 w-6 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+          ) : (
+            <svg className="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+            </svg>
+          )}
+        </button>
+        {/* Save & Exit */}
+        <button
+          onClick={async () => { await save(); onClose(); }}
+          disabled={saving || !isOnline}
+          title="Save & Exit"
+          className={`flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-all active:scale-95 ${
+            isOnline
+              ? "bg-green-600 text-white shadow-green-600/25"
+              : "bg-[var(--bg-tertiary)] text-[var(--text-tertiary)]"
+          } disabled:opacity-50`}
+        >
           <svg className="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
           </svg>
-        ) : (
-          <svg className="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-          </svg>
-        )}
-      </button>
+        </button>
+      </div>
     </div>
   );
 }
