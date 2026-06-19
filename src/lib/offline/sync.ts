@@ -4,11 +4,40 @@ import { offlineDb, type OfflineNote, type PendingChange } from "./db";
 
 export type SyncStatus = "idle" | "syncing" | "error";
 
+export async function getPendingNoteIds(): Promise<{ creates: Set<string>; updates: Set<string>; deletes: Set<string> }> {
+  const changes = await getPendingChanges();
+  const creates = new Set<string>();
+  const updates = new Set<string>();
+  const deletes = new Set<string>();
+  for (const c of changes) {
+    if (c.type === "create") creates.add(c.noteId);
+    else if (c.type === "update") updates.add(c.noteId);
+    else if (c.type === "delete") deletes.add(c.noteId);
+  }
+  return { creates, updates, deletes };
+}
+
 export async function saveNotesLocally(notes: OfflineNote[]): Promise<void> {
   if (!offlineDb) return;
+  const { creates, updates } = await getPendingNoteIds();
+  const pendingIds = new Set([...creates, ...updates]);
+
   await offlineDb.transaction("rw", offlineDb.notes, async () => {
+    let pendingNotes: OfflineNote[] = [];
+    if (pendingIds.size > 0) {
+      pendingNotes = await offlineDb!.notes
+        .where("id")
+        .anyOf([...pendingIds])
+        .toArray();
+    }
     await offlineDb!.notes.clear();
     await offlineDb!.notes.bulkPut(notes);
+    for (const pn of pendingNotes) {
+      const existsOnServer = notes.some((n) => n.id === pn.id);
+      if (!existsOnServer) {
+        await offlineDb!.notes.put(pn);
+      }
+    }
   });
 }
 

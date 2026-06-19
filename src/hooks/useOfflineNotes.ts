@@ -7,6 +7,7 @@ import {
   getLocalNotes,
   saveLocalChange,
   syncChanges,
+  getPendingNoteIds,
   type SyncStatus,
 } from "@/lib/offline/sync";
 import type { Note } from "./useNotes";
@@ -28,9 +29,25 @@ export function useOfflineNotes() {
       const res = await fetch("/api/notes");
       if (res.ok) {
         const data = await res.json();
-        setNotes(data.notes);
-        await saveNotesLocally(data.notes.map(noteToOffline));
-        return data.notes;
+        const serverNotes: Note[] = data.notes;
+        await saveNotesLocally(serverNotes.map(noteToOffline));
+
+        const { creates, deletes } = await getPendingNoteIds();
+        if (creates.size > 0) {
+          const local = await getLocalNotes();
+          const pendingNotes = (local as Note[]).filter(
+            (n) => creates.has(n.id) && !serverNotes.some((s) => s.id === n.id)
+          );
+          const merged = [...serverNotes, ...pendingNotes];
+          merged.sort((a, b) => {
+            if (a.pinned !== b.pinned) return (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0);
+            return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+          });
+          setNotes(merged.filter((n) => !deletes.has(n.id)));
+        } else {
+          setNotes(serverNotes.filter((n) => !deletes.has(n.id)));
+        }
+        return serverNotes;
       }
     } catch {}
     return null;
