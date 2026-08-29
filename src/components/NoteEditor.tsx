@@ -22,9 +22,18 @@ export function NoteEditor({ note, onClose }: NoteEditorProps) {
   const [noteId, setNoteId] = useState(note?.id ?? null);
   const autoSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSavedRef = useRef({ title: note?.title ?? "", body: note?.body ?? "", tags: note?.tags ?? [] as string[] });
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
   const isOnline = useOnlineStatus();
 
   const isNew = !noteId;
+
+  useEffect(() => {
+    if (!isNew && bodyRef.current) {
+      const el = bodyRef.current;
+      el.focus();
+      el.setSelectionRange(el.value.length, el.value.length);
+    }
+  }, []);
 
   const hasChanges =
     title !== lastSavedRef.current.title ||
@@ -173,6 +182,7 @@ export function NoteEditor({ note, onClose }: NoteEditorProps) {
           className="mb-3 w-full bg-transparent text-3xl font-bold text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)]"
         />
         <textarea
+          ref={bodyRef}
           value={body}
           onChange={(e) => setBody(e.target.value)}
           placeholder="Start typing..."
