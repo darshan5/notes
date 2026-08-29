@@ -32,6 +32,7 @@ export function NoteEditor({ note, onClose }: NoteEditorProps) {
       const el = bodyRef.current;
       el.focus();
       el.setSelectionRange(el.value.length, el.value.length);
+      el.scrollTop = el.scrollHeight;
     }
   }, []);
 
